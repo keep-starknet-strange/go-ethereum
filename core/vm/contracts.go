@@ -28,10 +28,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
 	"github.com/ethereum/go-ethereum/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
+	"github.com/ethereum/go-ethereum/crypto/poseidon"
 	"github.com/ethereum/go-ethereum/params"
 	big2 "github.com/holiman/big"
 	"golang.org/x/crypto/ripemd160"
 )
+
+const POSEIDON_PRECOMPILE_ADDRESS = 19
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
@@ -105,7 +108,24 @@ var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{18}): &bls12381MapG2{},
 }
 
+// PrecompiledContractsShangai contains the default set of pre-compiled Ethereum
+// contracts used in the Shangai release.
+var PrecompiledContractsShangai = map[common.Address]PrecompiledContract{
+	common.BytesToAddress([]byte{1}): &ecrecover{},
+	common.BytesToAddress([]byte{2}): &sha256hash{},
+	common.BytesToAddress([]byte{3}): &ripemd160hash{},
+	common.BytesToAddress([]byte{4}): &dataCopy{},
+	common.BytesToAddress([]byte{5}): &bigModExp{eip2565: true},
+	common.BytesToAddress([]byte{6}): &bn256AddIstanbul{},
+	common.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul{},
+	common.BytesToAddress([]byte{8}): &bn256PairingIstanbul{},
+	common.BytesToAddress([]byte{9}): &blake2F{},
+	// EIP-5988: Add Poseidon precompile
+	common.BytesToAddress([]byte{POSEIDON_PRECOMPILE_ADDRESS}): &poseidonHash{},
+}
+
 var (
+	PrecompiledAddressesShangai   []common.Address
 	PrecompiledAddressesBerlin    []common.Address
 	PrecompiledAddressesIstanbul  []common.Address
 	PrecompiledAddressesByzantium []common.Address
@@ -125,11 +145,16 @@ func init() {
 	for k := range PrecompiledContractsBerlin {
 		PrecompiledAddressesBerlin = append(PrecompiledAddressesBerlin, k)
 	}
+	for k := range PrecompiledContractsShangai {
+		PrecompiledAddressesShangai = append(PrecompiledAddressesShangai, k)
+	}
 }
 
 // ActivePrecompiles returns the precompiles enabled with the current configuration.
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
+	case rules.IsShanghai:
+		return PrecompiledAddressesShangai
 	case rules.IsBerlin:
 		return PrecompiledAddressesBerlin
 	case rules.IsIstanbul:
@@ -1048,4 +1073,60 @@ func (c *bls12381MapG2) Run(input []byte) ([]byte, error) {
 
 	// Encode the G2 point to 256 bytes
 	return g.EncodePoint(r), nil
+}
+
+// Poseidon hash implemented as a native contract.
+// As per https://eips.ethereum.org/EIPS/eip-5988
+type poseidonHash struct{}
+
+var (
+	errPoseidonInvalidInputLength = errors.New("invalid input length")
+	errPoseidonInvalidInput       = errors.New("invalid input")
+)
+
+const (
+	poseidonMaxFieldElementSizeInBytes = 32
+)
+
+// RequiredGas returns the gas required to execute the pre-compiled contract.
+//
+// This method does not require any overflow checking as the input size gas costs
+// required for anything significant is so high it's impossible to pay for.
+func (c *poseidonHash) RequiredGas(input []byte) uint64 {
+	return uint64(0)
+}
+
+// Implements EIP-5988 Poseidon hash precompile.
+func (c *poseidonHash) Run(input []byte) ([]byte, error) {
+	// TODO: implement
+
+	// 1. Parse input and validate it
+
+	// The input should be at least 40 bytes long.
+	if len(input) <= 40 {
+		return nil, errPoseidonInvalidInputLength
+	}
+
+	// Extract parameters from the input
+	p := input[0:poseidonMaxFieldElementSizeInBytes]
+	securityLevel := input[32:33]
+	alpha := input[34]
+	inputRate := int(binary.BigEndian.Uint64(input[35:36]))
+	t := input[37]
+	fullRound := input[38]
+	partialRound := input[39]
+	inputSize := inputRate * poseidonMaxFieldElementSizeInBytes
+
+	// The input should be at least 40 + inputSize bytes long.
+	if len(input) <= 40+inputSize {
+		return nil, errPoseidonInvalidInputLength
+	}
+
+	hashInput := input[40 : 40+inputSize]
+
+	// 2. Compute hash
+	poseidon.Hash()
+
+	// 3. Create output and return
+	return nil, errors.New("not implemented")
 }
