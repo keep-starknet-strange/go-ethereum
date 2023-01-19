@@ -65,6 +65,7 @@ var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{16}):   &bls12381Pairing{},
 	common.BytesToAddress([]byte{17}):   &bls12381MapG1{},
 	common.BytesToAddress([]byte{18}):   &bls12381MapG2{},
+	common.BytesToAddress([]byte{19}):   &poseidonF{},
 }
 
 // EIP-152 test vectors
@@ -269,6 +270,7 @@ func TestPrecompileBlake2FMalformedInput(t *testing.T) {
 		testPrecompiledFailure("09", test, t)
 	}
 }
+func TestPrecompiledPoseidonF(t *testing.T)      { testJson("poseidonF", "13", t) }
 
 func TestPrecompiledEcrecover(t *testing.T) { testJson("ecRecover", "01", t) }
 

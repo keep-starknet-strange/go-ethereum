@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/blake2b"
+	"github.com/ethereum/go-ethereum/crypto/poseidon"
 	"github.com/ethereum/go-ethereum/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/params"
@@ -89,20 +90,21 @@ var PrecompiledContractsBerlin = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul{},
 	common.BytesToAddress([]byte{8}): &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}): &blake2F{},
+	common.BytesToAddress([]byte{10}): &poseidonF{},
 }
 
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
 // contracts specified in EIP-2537. These are exported for testing purposes.
 var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{10}): &bls12381G1Add{},
-	common.BytesToAddress([]byte{11}): &bls12381G1Mul{},
-	common.BytesToAddress([]byte{12}): &bls12381G1MultiExp{},
-	common.BytesToAddress([]byte{13}): &bls12381G2Add{},
-	common.BytesToAddress([]byte{14}): &bls12381G2Mul{},
-	common.BytesToAddress([]byte{15}): &bls12381G2MultiExp{},
-	common.BytesToAddress([]byte{16}): &bls12381Pairing{},
-	common.BytesToAddress([]byte{17}): &bls12381MapG1{},
-	common.BytesToAddress([]byte{18}): &bls12381MapG2{},
+	common.BytesToAddress([]byte{11}): &bls12381G1Add{},
+	common.BytesToAddress([]byte{12}): &bls12381G1Mul{},
+	common.BytesToAddress([]byte{13}): &bls12381G1MultiExp{},
+	common.BytesToAddress([]byte{14}): &bls12381G2Add{},
+	common.BytesToAddress([]byte{15}): &bls12381G2Mul{},
+	common.BytesToAddress([]byte{16}): &bls12381G2MultiExp{},
+	common.BytesToAddress([]byte{17}): &bls12381Pairing{},
+	common.BytesToAddress([]byte{18}): &bls12381MapG1{},
+	common.BytesToAddress([]byte{19}): &bls12381MapG2{},
 }
 
 var (
@@ -624,6 +626,18 @@ func (c *blake2F) Run(input []byte) ([]byte, error) {
 	}
 	return output, nil
 }
+
+// Poseidon implemented as a native contract.
+type poseidonF struct{}
+
+func (c *poseidonF) RequiredGas(input []byte) uint64 {
+	return 300
+}
+
+func (c *poseidonF) Run(input []byte) ([]byte, error) {
+	return poseidon.Hash(input), nil
+}
+
 
 var (
 	errBLS12381InvalidInputLength          = errors.New("invalid input length")
