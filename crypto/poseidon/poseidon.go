@@ -14,6 +14,9 @@ import (
 
 func Hash(input []byte) ([]byte) {
     output := make([]byte, 64)
-    count := C.c_hash_sw2((*C.uint8_t)(unsafe.Pointer(&input[0])), C.size_t(len(input)), (*C.uint8_t)(unsafe.Pointer(&output[0])), C.size_t(len(output)))
+    count := C.c_hash_sw2(
+	    (*C.uint8_t)(unsafe.Pointer(&input[0])), C.size_t(len(input)),
+	    (*C.uint8_t)(unsafe.Pointer(&output[0])), C.size_t(len(output)),
+    )
     return output[:count]
 }

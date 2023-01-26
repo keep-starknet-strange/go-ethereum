@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  geth:
+    image: geth
+    build: ./
+    container_name: geth
+    ports:
+      - 8545:8545
+      - 8546:8546
+      - 30303:30303
+      - 30303:30303/udp
+    network_mode: host
+
+    entrypoint: 
+      - geth
+      - --dev
+      - --http
+      - --datadir=/root/poseidon-testdata
+
+  cli:
+    image: poseidon-cli
+    build: ./tests/poseidon
+    container_name: poseidon-cli
+    entrypoint:
+      - poseidon
+    network_mode: host
