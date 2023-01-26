@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -29,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/poseidon"
 	"github.com/ethereum/go-ethereum/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	big2 "github.com/holiman/big"
 	"golang.org/x/crypto/ripemd160"
@@ -90,7 +92,7 @@ var PrecompiledContractsBerlin = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul{},
 	common.BytesToAddress([]byte{8}): &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}): &blake2F{},
-	common.BytesToAddress([]byte{10}): &poseidonF{},
+	common.BytesToAddress([]byte{10}): &poseidonHash{},
 }
 
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
@@ -628,13 +630,42 @@ func (c *blake2F) Run(input []byte) ([]byte, error) {
 }
 
 // Poseidon implemented as a native contract.
-type poseidonF struct{}
+type poseidonHash struct{}
 
-func (c *poseidonF) RequiredGas(input []byte) uint64 {
+func (c *poseidonHash) RequiredGas(input []byte) uint64 {
 	return 300
 }
 
-func (c *poseidonF) Run(input []byte) ([]byte, error) {
+const poseidonHashInputLength = 64
+
+func (c *poseidonHash) Run(input []byte) ([]byte, error) {
+	if len(input) != poseidonHashInputLength {
+		return nil, fmt.Errorf("Invalid input length: %v", len(input))
+	}
+	log.Info("Calling Poseidon Precompile")
+	z := new(big.Int)
+	val := make([]byte, 32)
+	for i, n := range input[:32] {
+		val[31-i] = n
+	}
+	z.SetBytes(val)
+	log.Info(fmt.Sprintf("Input 1: %v", z))
+	for i, n := range input[32:] {
+		val[31-i] = n
+	 }
+	z.SetBytes(val)
+	log.Info(fmt.Sprintf("Input 2: %v", z))
+	output := poseidon.Hash(input)
+	for i, n := range output[:32] {
+		val[31-i] = n
+	}
+	z.SetBytes(val)
+	log.Info(fmt.Sprintf("Output 1: %v", z))
+	for i, n := range output[32:] {
+		val[31-i] = n
+	}
+	z.SetBytes(val)
+	log.Info(fmt.Sprintf("Output 2: %v", z))
 	return poseidon.Hash(input), nil
 }
 
